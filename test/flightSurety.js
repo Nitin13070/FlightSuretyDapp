@@ -139,4 +139,8 @@ contract('Flight Surety Tests', async (accounts) => {
     assert.equal(result, true, "Airline5 is not registered");
   })
 
+  it("Insurance Amount is credit to insuree after flight got delayed", async() =>{
+    // TODO : Add Test here.
+    // complete server.js code.
+  });
 });

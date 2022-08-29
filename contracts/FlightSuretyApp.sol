@@ -122,7 +122,9 @@ contract FlightSuretyApp {
     * @dev Add an airline to the registration queue
     *
     */   
-    function registerAirline(string calldata airlineName, address airlineAddress) requireRegisteredAirline external returns(bool success, uint256 votes) {
+    function registerAirline(string calldata airlineName, address airlineAddress) requireIsOperational requireRegisteredAirline external returns(bool success, uint256 votes) {
+        require(flightSuretyData.isAirline(airlineAddress) != true, "Airline is already registered.");
+
         uint256 registeredAirlineCount = flightSuretyData.getRegisteredAirlineCount();
 
         if (registeredAirlineCount < 4) {
@@ -170,16 +172,17 @@ contract FlightSuretyApp {
     * @dev Called after oracle has updated flight status
     *
     */  
-    function processFlightStatus
-                                (
+    function processFlightStatus(
                                     address airline,
                                     string memory flight,
                                     uint256 timestamp,
                                     uint8 statusCode
                                 )
                                 internal
-                                pure
     {
+        if (statusCode == STATUS_CODE_LATE_AIRLINE) {
+            flightSuretyData.creditInsurees(airline, flight, timestamp, 2);
+        }
     }
 
 
@@ -385,7 +388,11 @@ contract FlightSuretyApp {
 interface IFlightSuretyData {
     function isAirlineOperational(address airlineAddress) external view returns(bool);
 
+    function isAirline(address airlineAddress) external view returns(bool);
+
     function getRegisteredAirlineCount() external view returns(uint256);
 
     function registerAirline(string calldata airlineName, address airlineAddress) external;
+
+    function creditInsurees(address airline, string calldata flight, uint256 timestamp, uint256 divFactor) external;
 }

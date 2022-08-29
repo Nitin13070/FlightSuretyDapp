@@ -1,5 +1,5 @@
 var HDWalletProvider = require("truffle-hdwallet-provider");
-var mnemonic = "this typical tunnel front way trial detect rifle nurse aunt silver pepper";
+var mnemonic = "draft advance drill dinosaur patch vehicle trip skin sick relax end advance";
 
 module.exports = {
   networks: {
@@ -10,6 +10,8 @@ module.exports = {
       network_id: '*'
     }
   },
+  contracts_directory: './contracts/',
+  contracts_build_directory: './build/contracts/',
   compilers: {
     solc: {
       version: "0.5.16"

@@ -26,6 +26,15 @@ contract FlightSuretyData {
 
     uint256 private registeredAirlineCount;
 
+    struct Insurance {
+        address insuree;
+        uint256 amount;
+    }
+
+    mapping(bytes32 => Insurance[]) private insuranceBought;
+
+    mapping(address => uint256) private insureeBalance;
+
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
@@ -72,6 +81,16 @@ contract FlightSuretyData {
 
     modifier requireAuthorizedCaller() {
         require(authorizedCallerMap[msg.sender], "Caller is not authorized.");
+        _;
+    }
+
+    modifier requireAmountLimit(uint256 amount) {
+        require(msg.value <= amount, "flight insurance amount cannot be more than 1 ether");
+        _;
+    }
+
+    modifier requireAirlineOperational(address airlineAddress) {
+        require(isAirlineOperational(airlineAddress), "Airline is not Operational.");
         _;
     }
 
@@ -129,9 +148,8 @@ contract FlightSuretyData {
     *      Can only be called from FlightSuretyApp contract
     *
     */   
-    function registerAirline(string calldata airlineName, address airlineAddress) requireAuthorizedCaller requireIsOperational external {
+    function registerAirline(string calldata airlineName, address airlineAddress) requireIsOperational requireAuthorizedCaller external {
         airlines[airlineAddress] = Airline({name: airlineName, flights: new string[](0), isOperational: false, flag: true});
-        airlines[airlineAddress].flag = true;
         registeredAirlineCount = registeredAirlineCount.add(1);
     }
 
@@ -143,7 +161,7 @@ contract FlightSuretyData {
         return airlines[airlineAddress].flag;
     }
 
-    function isAirlineOperational(address airlineAddress) external view returns(bool) {
+    function isAirlineOperational(address airlineAddress) public view returns(bool) {
         return airlines[airlineAddress].isOperational;
     }
 
@@ -151,24 +169,30 @@ contract FlightSuretyData {
     * @dev Buy insurance for a flight
     *
     */   
-    function buy
-                            (                             
-                            )
-                            external
-                            payable
-    {
-
+    function buy (address airline, string calldata flight, uint256 timestamp)   
+                                                                            requireIsOperational 
+                                                                            requireAirlineOperational(airline) 
+                                                                            requireAmountLimit(1 ether) 
+                                                                            external payable {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        insuranceBought[key].push(Insurance(msg.sender, msg.value));
     }
 
     /**
      *  @dev Credits payouts to insurees
     */
-    function creditInsurees
-                                (
-                                )
-                                external
-                                pure
-    {
+    function creditInsurees(address airline, string calldata flight, uint256 timestamp, uint256 divFactor) 
+                                                                                                        requireIsOperational
+                                                                                                        requireAuthorizedCaller 
+                                                                                                        requireAirlineOperational(airline) 
+                                                                                                        external {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        Insurance[] memory insureeList = insuranceBought[key];
+        
+        for (uint i=0; i < insureeList.length; i++) {
+            uint256 creditAmount = insureeList[i].amount.add(insureeList[i].amount.div(divFactor));
+            insureeBalance[insureeList[i].insuree] = insureeBalance[insureeList[i].insuree].add(creditAmount);
+        }
     }
     
 
@@ -176,12 +200,14 @@ contract FlightSuretyData {
      *  @dev Transfers eligible payout funds to insuree
      *
     */
-    function pay
-                            (
-                            )
-                            external
-                            pure
+    function pay () requireIsOperational external
     {
+        uint256 amountToPay = insureeBalance[msg.sender];
+        require(amountToPay == 0, "Zero Balance, No amount to be paid.");
+
+        insureeBalance[msg.sender] = 0;
+
+        _make_payable(msg.sender).transfer(amountToPay);
     }
 
    /**
