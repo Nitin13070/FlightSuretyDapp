@@ -10,7 +10,21 @@ contract FlightSuretyData {
     /********************************************************************************************/
 
     address private contractOwner;                                      // Account used to deploy contract
-    bool private operational = true;                                    // Blocks all state changes throughout the contract if false
+    
+    bool private operational;                                    // Blocks all state changes throughout the contract if false
+    
+    mapping(address => bool) private authorizedCallerMap;
+
+    struct Airline {
+        string name;
+        string[] flights;
+        bool isOperational;
+        bool flag;
+    }
+
+    mapping(address => Airline) private airlines;
+
+    uint256 private registeredAirlineCount;
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -21,12 +35,12 @@ contract FlightSuretyData {
     * @dev Constructor
     *      The deploying account becomes contractOwner
     */
-    constructor
-                                (
-                                ) 
-                                public 
-    {
+    constructor(string memory airlineName, address airlineAddress) public {
         contractOwner = msg.sender;
+        operational = true;
+        airlines[airlineAddress] = Airline({name: airlineName, flights: new string[](0), isOperational: false, flag: true});
+        airlines[airlineAddress].flag = true;
+        registeredAirlineCount = 1;
     }
 
     /********************************************************************************************/
@@ -56,6 +70,11 @@ contract FlightSuretyData {
         _;
     }
 
+    modifier requireAuthorizedCaller() {
+        require(authorizedCallerMap[msg.sender], "Caller is not authorized.");
+        _;
+    }
+
     /********************************************************************************************/
     /*                                       UTILITY FUNCTIONS                                  */
     /********************************************************************************************/
@@ -73,20 +92,32 @@ contract FlightSuretyData {
         return operational;
     }
 
-
     /**
     * @dev Sets contract operations on/off
     *
     * When operational mode is disabled, all write transactions except for this one will fail
     */    
-    function setOperatingStatus
-                            (
-                                bool mode
-                            ) 
-                            external
-                            requireContractOwner 
-    {
+    function setOperatingStatus(bool mode) requireContractOwner external {
         operational = mode;
+    }
+
+    function authorizeCaller( address appContract ) requireContractOwner requireIsOperational external {
+        authorizedCallerMap[appContract] = true;
+    }
+
+    function deauthorizeCaller( address appContract ) requireContractOwner requireIsOperational external {
+        delete authorizedCallerMap[appContract];
+    }
+
+    // Function that allows you to convert an address into a payable address
+    function _make_payable(address x) private pure returns (address payable) {
+        return address(uint160(x));
+    }
+
+      // Define a function 'kill' if required
+    function kill() requireContractOwner public {
+        address payable ownerAddress = _make_payable(contractOwner);
+        selfdestruct(ownerAddress);
     }
 
     /********************************************************************************************/
@@ -98,14 +129,23 @@ contract FlightSuretyData {
     *      Can only be called from FlightSuretyApp contract
     *
     */   
-    function registerAirline
-                            (   
-                            )
-                            external
-                            pure
-    {
+    function registerAirline(string calldata airlineName, address airlineAddress) requireAuthorizedCaller requireIsOperational external {
+        airlines[airlineAddress] = Airline({name: airlineName, flights: new string[](0), isOperational: false, flag: true});
+        airlines[airlineAddress].flag = true;
+        registeredAirlineCount = registeredAirlineCount.add(1);
     }
 
+    function getRegisteredAirlineCount() external view returns(uint256) {
+        return registeredAirlineCount;
+    }
+
+    function isAirline(address airlineAddress) external view returns(bool) {
+        return airlines[airlineAddress].flag;
+    }
+
+    function isAirlineOperational(address airlineAddress) external view returns(bool) {
+        return airlines[airlineAddress].isOperational;
+    }
 
    /**
     * @dev Buy insurance for a flight
@@ -149,12 +189,11 @@ contract FlightSuretyData {
     *      resulting in insurance payouts, the contract should be self-sustaining
     *
     */   
-    function fund
-                            (   
-                            )
-                            public
-                            payable
-    {
+    function fund() requireIsOperational public payable {
+        if (bytes(airlines[msg.sender].name).length  != 0) {
+            require(msg.value >= 10 ether, "Insufficient Funds for Airline participation.");
+            airlines[msg.sender].isOperational = true;
+        }
     }
 
     function getFlightKey
@@ -174,10 +213,8 @@ contract FlightSuretyData {
     * @dev Fallback function for funding smart contract.
     *
     */
-    function() 
-                            external 
-                            payable 
-    {
+    function() external payable {
+        require(msg.data.length == 0, "Invalid function call");
         fund();
     }
 

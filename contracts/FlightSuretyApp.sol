@@ -25,6 +25,15 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
     address private contractOwner;          // Account used to deploy contract
+    bool private operational;
+    IFlightSuretyData flightSuretyData;
+
+    struct Vote {
+        uint256 count;
+        mapping(address => bool) voterAddress; 
+    }
+
+    mapping(address => Vote) airlineVote;
 
     struct Flight {
         bool isRegistered;
@@ -50,7 +59,7 @@ contract FlightSuretyApp {
     modifier requireIsOperational() 
     {
          // Modify to call data contract's status
-        require(true, "Contract is currently not operational");  
+        require(operational, "Contract is currently not operational");  
         _;  // All modifiers require an "_" which indicates where the function body will be added
     }
 
@@ -60,6 +69,11 @@ contract FlightSuretyApp {
     modifier requireContractOwner()
     {
         require(msg.sender == contractOwner, "Caller is not contract owner");
+        _;
+    }
+
+    modifier requireRegisteredAirline() {
+        require(flightSuretyData.isAirlineOperational(msg.sender), "Caller is not registered airline");
         _;
     }
 
@@ -73,10 +87,13 @@ contract FlightSuretyApp {
     */
     constructor
                                 (
+                                    address dataContract
                                 ) 
                                 public 
     {
         contractOwner = msg.sender;
+        operational = true;
+        flightSuretyData = IFlightSuretyData(dataContract);
     }
 
     /********************************************************************************************/
@@ -85,10 +102,15 @@ contract FlightSuretyApp {
 
     function isOperational() 
                             public 
-                            pure 
+                            view 
                             returns(bool) 
     {
-        return true;  // Modify to call data contract's status
+        return operational;  // Modify to call data contract's status
+    }
+
+    function setOperatingStatus(bool operatingStatus) requireContractOwner public {
+        require(operational != operatingStatus, "Operating Status already modified.");
+        operational = operatingStatus;
     }
 
     /********************************************************************************************/
@@ -100,14 +122,34 @@ contract FlightSuretyApp {
     * @dev Add an airline to the registration queue
     *
     */   
-    function registerAirline
-                            (   
-                            )
-                            external
-                            pure
-                            returns(bool success, uint256 votes)
-    {
-        return (success, 0);
+    function registerAirline(string calldata airlineName, address airlineAddress) requireRegisteredAirline external returns(bool success, uint256 votes) {
+        uint256 registeredAirlineCount = flightSuretyData.getRegisteredAirlineCount();
+
+        if (registeredAirlineCount < 4) {
+            flightSuretyData.registerAirline(airlineName, airlineAddress);
+            success = true;
+            votes = 0;
+        } else {
+            votes = airlineVote[airlineAddress].count;
+            if (votes == 0) {
+                airlineVote[airlineAddress] = Vote(1);
+                airlineVote[airlineAddress].voterAddress[msg.sender] = true;
+
+                success = false;
+                votes = 1;
+            } else if (votes.add(1) >= registeredAirlineCount.div(2)) {
+                flightSuretyData.registerAirline(airlineName, airlineAddress);
+                success = true;
+            } else {
+                require(airlineVote[airlineAddress].voterAddress[msg.sender] != true, "Caller already registered airline.");
+
+                success = false;
+                votes = airlineVote[airlineAddress].count.add(1);
+
+                airlineVote[airlineAddress].count = votes;
+                airlineVote[airlineAddress].voterAddress[msg.sender] = true;
+            }
+        }
     }
 
 
@@ -335,3 +377,15 @@ contract FlightSuretyApp {
 // endregion
 
 }   
+
+/********************************************************************************************/
+/*                                     DATA CONTRACT INTERFACE                              */
+/********************************************************************************************/
+
+interface IFlightSuretyData {
+    function isAirlineOperational(address airlineAddress) external view returns(bool);
+
+    function getRegisteredAirlineCount() external view returns(uint256);
+
+    function registerAirline(string calldata airlineName, address airlineAddress) external;
+}
