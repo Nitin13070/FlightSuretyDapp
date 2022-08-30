@@ -32,6 +32,13 @@ To view dapp:
 `npm run server`
 `truffle test ./test/oracles.js`
 
+## Program Version numbers
+
+1. Truffle v5.5.22 (core: 5.5.22)
+2. Ganache v7.3.2
+3. Solidity - 0.5.16 (solc-js)
+4. Node v16.15.1
+5. Web3.js v1.7.4
 
 ## Resources
 
