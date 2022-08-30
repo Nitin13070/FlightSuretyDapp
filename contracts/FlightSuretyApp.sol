@@ -26,14 +26,14 @@ contract FlightSuretyApp {
 
     address private contractOwner;          // Account used to deploy contract
     bool private operational;
-    IFlightSuretyData flightSuretyData;
+    IFlightSuretyData flightSuretyData; // Data Contract Interface
 
     struct Vote {
         uint256 count;
         mapping(address => bool) voterAddress; 
     }
 
-    mapping(address => Vote) airlineVote;
+    mapping(address => Vote) airlineVote; // Used for implementing multi-party consensus. 
 
     struct Flight {
         bool isRegistered;
@@ -159,13 +159,10 @@ contract FlightSuretyApp {
     * @dev Register a future flight for insuring.
     *
     */  
-    function registerFlight
-                                (
-                                )
-                                external
-                                pure
-    {
+    function registerFlight(address airline, string calldata flight, uint256 timestamp) external {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
 
+        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, now, airline);
     }
     
    /**
@@ -178,9 +175,14 @@ contract FlightSuretyApp {
                                     uint256 timestamp,
                                     uint8 statusCode
                                 )
-                                public
+                                internal
     {
-        if (statusCode == STATUS_CODE_LATE_AIRLINE) {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        require(statusCode != flights[key].statusCode, "Flight Status is already set.");
+        
+        flights[key].statusCode = statusCode;
+
+        if (flights[key].statusCode == STATUS_CODE_LATE_AIRLINE) {
             flightSuretyData.creditInsurees(airline, flight, timestamp, 2);
         }
     }
@@ -193,7 +195,7 @@ contract FlightSuretyApp {
                             string calldata flight,
                             uint256 timestamp                            
                         )
-                        external
+                        requireIsOperational external
     {
         uint8 index = getRandomIndex(msg.sender);
 
@@ -256,6 +258,7 @@ contract FlightSuretyApp {
     function registerOracle
                             (
                             )
+                            requireIsOperational 
                             external
                             payable
     {
@@ -297,7 +300,7 @@ contract FlightSuretyApp {
                             uint256 timestamp,
                             uint8 statusCode
                         )
-                        external
+                        requireIsOperational external
     {
         require((oracles[msg.sender].indexes[0] == index) || (oracles[msg.sender].indexes[1] == index) || (oracles[msg.sender].indexes[2] == index), "Index does not match oracle request");
 

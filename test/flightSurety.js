@@ -103,35 +103,33 @@ contract('Flight Surety Tests', async (accounts) => {
 
     await config.flightSuretyApp.registerAirline("Airline2", newAirline2, {from: config.firstAirline});
     result = await config.flightSuretyData.isAirline.call(newAirline2);
-    assert.equal(result, true, "Airline2 is not registered");
+    assert.equal(result, true, "Airline2 must be registered");
 
     await config.flightSuretyApp.registerAirline("Airline3", newAirline3, {from: config.firstAirline});
     result = await config.flightSuretyData.isAirline.call(newAirline3);
-    assert.equal(result, true, "Airline3 is not registered");
+    assert.equal(result, true, "Airline3 must be registered");
 
     await config.flightSuretyApp.registerAirline("Airline4", newAirline4, {from: config.firstAirline});
     result = await config.flightSuretyData.isAirline.call(newAirline4);
-    assert.equal(result, true, "Airline4 is not registered");
+    assert.equal(result, true, "Airline4 must be registered");
 
     let newAirline5 = accounts[5];
-    try {
-        await config.flightSuretyApp.registerAirline("Airline5", newAirline5, {from: config.firstAirline});
-        assert.fail("Registering 5th Airline must not be successfull because it multi-party consensus of 50% ");
-    } catch(e) {}
-
+    
+    await config.flightSuretyApp.registerAirline("Airline5", newAirline5, {from: config.firstAirline});
     result = await config.flightSuretyData.isAirline.call(newAirline5);
-    assert.equal(result, false, "Airline5 is registered");
+    assert.equal(result, false, "Airline5 must not be registered");
   })
 
   it("Registration of fifth and subsequent airlines requires multi-party consensus of 50% of registered airlines", async() => {
     let newAirline2 = accounts[2];
     let newAirline5 = accounts[5];
 
-    // Make 2nd Airline Operational by funding 10 ether.
+    // Make 2nd Airline Operational by funding 10 ether. So that 'newAirline2' can also vote for 'Airline5'.
     await config.flightSuretyData.fund({from: newAirline2, value: web3.utils.toWei('10', 'ether')});
     let result = await config.flightSuretyData.isAirlineOperational.call(newAirline2);
     assert.equal(result, true, "Airline2 is not Operational"); 
 
+    // Since 4 airlines are registered and 'Airline5' will be registered by 2 airlines after below transaction.
     await config.flightSuretyApp.registerAirline("Airline5", newAirline5, {from: newAirline2});
 
     result = await config.flightSuretyData.isAirline.call(newAirline5);
@@ -145,15 +143,39 @@ contract('Flight Surety Tests', async (accounts) => {
     let flightName = "Flight-1";
     let timestamp = Math.floor(Date.now() / 1000);
 
+    let isReverted = false;
 
     await config.flightSuretyData.buy(config.firstAirline, flightName, timestamp, {from: passenger, value: 1000});
 
     try {
       await config.flightSuretyData.buy(config.firstAirline, flightName, timestamp, {from: passenger1, value: web3.utils.toWei('2', 'ether')});
     } catch(e) {
-      console.log(e);
+      isReverted = true;
     }
-    
+    assert.equal(isReverted, true, "Passenger cannot buy insurance for more than 1 ether.");
+  })
 
+  it("Passenger can widraw their funds after flight is delayed", async() => {
+    let passenger = accounts[7];
+    let flightName = "Flight-1";
+    let timestamp = Math.floor(Date.now() / 1000);
+
+    await config.flightSuretyData.buy(config.firstAirline, flightName, timestamp, {from: passenger, value: web3.utils.toWei('1', 'ether')});
+
+    await config.flightSuretyData.authorizeCaller(config.owner); // Only for calling Data Contract.
+    
+    await config.flightSuretyData.creditInsurees(config.firstAirline, flightName, timestamp, 2);
+
+    let prevBalance = BigNumber(await web3.eth.getBalance(passenger));
+
+    let transaction = await config.flightSuretyData.pay({from: passenger});
+
+    let gasPrice = BigNumber(await web3.eth.getGasPrice());
+    let txGasFee =  BigNumber(transaction.receipt.gasUsed * gasPrice);
+    let payoutAmount = BigNumber(web3.utils.toWei('1.5', 'ether'));
+    let afterBalance = BigNumber(await web3.eth.getBalance(passenger));
+    let expectedBalance = prevBalance.minus(txGasFee).plus(payoutAmount);
+
+    assert.equal(expectedBalance.isEqualTo(afterBalance), true, "Amount is not credited to Passenger");
   })
 });

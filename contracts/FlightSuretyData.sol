@@ -189,7 +189,7 @@ contract FlightSuretyData {
         Insurance[] memory insureeList = insuranceBought[key];
 
         for (uint i=0; i < insureeList.length; i++) {
-            uint256 creditAmount = insureeList[i].amount.add(insureeList[i].amount.div(divFactor));
+            uint256 creditAmount = insureeList[i].amount.add(insureeList[i].amount.div(divFactor)); // InsuranceAmount + (InsuranceAmount/2) = 1.5x of InsuranceAmount
             insureeBalance[insureeList[i].insuree] = insureeBalance[insureeList[i].insuree].add(creditAmount);
         }
     }
