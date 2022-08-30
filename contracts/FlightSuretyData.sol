@@ -17,7 +17,6 @@ contract FlightSuretyData {
 
     struct Airline {
         string name;
-        string[] flights;
         bool isOperational;
         bool flag;
     }
@@ -47,7 +46,7 @@ contract FlightSuretyData {
     constructor(string memory airlineName, address airlineAddress) public {
         contractOwner = msg.sender;
         operational = true;
-        airlines[airlineAddress] = Airline({name: airlineName, flights: new string[](0), isOperational: false, flag: true});
+        airlines[airlineAddress] = Airline({name: airlineName, isOperational: false, flag: true});
         airlines[airlineAddress].flag = true;
         registeredAirlineCount = 1;
     }
@@ -149,7 +148,7 @@ contract FlightSuretyData {
     *
     */   
     function registerAirline(string calldata airlineName, address airlineAddress) requireIsOperational requireAuthorizedCaller external {
-        airlines[airlineAddress] = Airline({name: airlineName, flights: new string[](0), isOperational: false, flag: true});
+        airlines[airlineAddress] = Airline({name: airlineName, isOperational: false, flag: true});
         registeredAirlineCount = registeredAirlineCount.add(1);
     }
 
@@ -188,7 +187,7 @@ contract FlightSuretyData {
                                                                                                         external {
         bytes32 key = getFlightKey(airline, flight, timestamp);
         Insurance[] memory insureeList = insuranceBought[key];
-        
+
         for (uint i=0; i < insureeList.length; i++) {
             uint256 creditAmount = insureeList[i].amount.add(insureeList[i].amount.div(divFactor));
             insureeBalance[insureeList[i].insuree] = insureeBalance[insureeList[i].insuree].add(creditAmount);
@@ -203,7 +202,7 @@ contract FlightSuretyData {
     function pay () requireIsOperational external
     {
         uint256 amountToPay = insureeBalance[msg.sender];
-        require(amountToPay == 0, "Zero Balance, No amount to be paid.");
+        require(amountToPay != 0, "Zero Balance, No amount to be paid.");
 
         insureeBalance[msg.sender] = 0;
 

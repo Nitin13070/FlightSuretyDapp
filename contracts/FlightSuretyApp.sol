@@ -178,7 +178,7 @@ contract FlightSuretyApp {
                                     uint256 timestamp,
                                     uint8 statusCode
                                 )
-                                internal
+                                public
     {
         if (statusCode == STATUS_CODE_LATE_AIRLINE) {
             flightSuretyData.creditInsurees(airline, flight, timestamp, 2);
@@ -316,6 +316,9 @@ contract FlightSuretyApp {
 
             // Handle flight status as appropriate
             processFlightStatus(airline, flight, timestamp, statusCode);
+
+            // Stop recieving more responses from oracles.
+            oracleResponses[key].isOpen = false;
         }
     }
 

@@ -1,7 +1,6 @@
 
 var Test = require('../config/testConfig.js');
 var BigNumber = require('bignumber.js');
-const web3 = require('web3');
 
 contract('Flight Surety Tests', async (accounts) => {
 
@@ -138,9 +137,4 @@ contract('Flight Surety Tests', async (accounts) => {
     result = await config.flightSuretyData.isAirline.call(newAirline5);
     assert.equal(result, true, "Airline5 is not registered");
   })
-
-  it("Insurance Amount is credit to insuree after flight got delayed", async() =>{
-    // TODO : Add Test here.
-    // complete server.js code.
-  });
 });
