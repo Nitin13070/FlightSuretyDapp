@@ -24,11 +24,11 @@ module.exports = function(deployer, network, accounts) {
                     fs.writeFileSync(__dirname + '/../src/server/config.json',JSON.stringify(config, null, '\t'), 'utf-8');
 
                     // Authorize FlightSuretyApp Contract address to make call in FlightSuretyData contract.
-                    // flightSuretyData = await FlightSuretyData.deployed();
-                    // flightSuretyData.authorizeCaller(FlightSuretyApp.address, {from: accounts[0]});
+                    flightSuretyData = await FlightSuretyData.deployed();
+                    flightSuretyData.authorizeCaller(FlightSuretyApp.address, {from: accounts[0]});
 
                     // Submits funding of 10 ether for first airline so that it can contribute in registering other airlines.
-                    // flightSuretyData.fund({from: firstAirlineAddress, value: web3.utils.toWei('10', 'ether')})
+                    flightSuretyData.fund({from: firstAirlineAddress, value: web3.utils.toWei('10', 'ether')})
                 });
     });
 }

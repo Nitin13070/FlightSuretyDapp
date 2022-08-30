@@ -137,4 +137,23 @@ contract('Flight Surety Tests', async (accounts) => {
     result = await config.flightSuretyData.isAirline.call(newAirline5);
     assert.equal(result, true, "Airline5 is not registered");
   })
+
+  it("Passengers may pay up to 1 ether for purchasing flight insurance", async() => {
+
+    let passenger = accounts[6];
+    let passenger1 = accounts[7];
+    let flightName = "Flight-1";
+    let timestamp = Math.floor(Date.now() / 1000);
+
+
+    await config.flightSuretyData.buy(config.firstAirline, flightName, timestamp, {from: passenger, value: 1000});
+
+    try {
+      await config.flightSuretyData.buy(config.firstAirline, flightName, timestamp, {from: passenger1, value: web3.utils.toWei('2', 'ether')});
+    } catch(e) {
+      console.log(e);
+    }
+    
+
+  })
 });

@@ -13,16 +13,37 @@ import './flightsurety.css';
         // Read transaction
         contract.isOperational((error, result) => {
             console.log(error,result);
-            display('Operational Status', 'Check if contract is operational', [ { label: 'Operational Status', error: error, value: result} ]);
+            display('', 'Contract Operational Status', [ { label: 'Operational Status', error: error, value: result} ]);
         });
     
+        console.log("Flights Added : ",contract.flights);
+
+        populateFlights(contract.flights);
 
         // User-submitted transaction
         DOM.elid('submit-oracle').addEventListener('click', () => {
-            let flight = DOM.elid('flight-number').value;
+            //let flight = DOM.elid('flight-number').value;
+
+            let flightsSelect = DOM.elid("flights");
+            let flight = JSON.parse(flightsSelect.options[flightsSelect.selectedIndex].value);
             // Write transaction
             contract.fetchFlightStatus(flight, (error, result) => {
-                display('Oracles', 'Trigger oracles', [ { label: 'Fetch Flight Status', error: error, value: result.flight + ' ' + result.timestamp} ]);
+                display('', 'Trigger oracles', [ { label: 'Fetch Flight Status', error: error, value: JSON.stringify(result)} ]);
+            });
+        })
+
+        DOM.elid('buy-insurance').addEventListener('click', () => {
+            
+            let flightsSelect = DOM.elid("insured-flights");
+            let flight = JSON.parse(flightsSelect.options[flightsSelect.selectedIndex].value);
+            let insuredAmount = DOM.elid("insured-amount").value;
+            // Write transaction
+            
+            contract.buyInsurance(flight, insuredAmount, (error, result) => {
+                if (error) {
+                    console.log(error.toString());
+                }
+                display('', 'Insurance Bought', [ { label: 'Flight Insured', error: error, value: JSON.stringify(result)} ]);
             });
         })
     
@@ -31,6 +52,24 @@ import './flightsurety.css';
 
 })();
 
+function populateFlights(flights) {
+    let flightsSelect = DOM.elid("flights");
+    let insuredflightsSelect = DOM.elid("insured-flights");
+
+    flights.forEach(element => {
+        var opt = DOM.makeElement('option');
+        opt.value = JSON.stringify(element);
+        opt.innerHTML = element.name + "(" + element.airlineName + ")";
+        flightsSelect.appendChild(opt);
+    });
+
+    flights.forEach(element => {
+        var opt = DOM.makeElement('option');
+        opt.value = JSON.stringify(element);
+        opt.innerHTML = element.name + "(" + element.airlineName + ")";
+        insuredflightsSelect.appendChild(opt);
+    });
+}
 
 function display(title, description, results) {
     let displayDiv = DOM.elid("display-wrapper");
